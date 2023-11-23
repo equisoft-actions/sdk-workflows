@@ -1,0 +1,136 @@
+name: Typescript SDK
+
+on:
+  workflow_call:
+    secrets:
+      NPM_TOKEN:
+        description: NPM token used to publish to registry.yarnpkg.com.
+        required: true
+      SLACK_NOTIFICATION_WEBHOOK_URL:
+        description: A Slack webhook where workflow failures will be published to.
+        required: true
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      is-release: ${{ steps.metadata.outputs.is-release }}
+      publishable: ${{ steps.metadata.outputs.publishable }}
+      version: ${{ steps.metadata.outputs.version }}
+      npm-tag: ${{ steps.metadata.outputs.npm-tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup asdf-vm
+        uses: equisoft-actions/with-asdf-vm@v2
+
+      - name: Find application metadata
+        id: metadata
+        uses: equisoft-actions/nodejs-application-metadata@v1
+
+      - name: Install NPM dependencies
+        uses: equisoft-actions/yarn-install@v1
+
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup asdf-vm
+        uses: equisoft-actions/with-asdf-vm@v2
+
+      - name: Install NPM dependencies
+        uses: equisoft-actions/yarn-install@v1
+
+      - name: Build
+        run: yarn build
+
+      - name: Store package
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+      - build
+
+    if: ${{ needs.setup.outputs.publishable == 'true' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download
+        uses: actions/download-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup asdf-vm
+        uses: equisoft-actions/with-asdf-vm@v2
+
+      - name: Install NPM dependencies
+        uses: equisoft-actions/yarn-install@v1
+
+      - name: Update package version
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          contents="$(jq ".version = \"${VERSION}\"" ./package.json)" && echo "${contents}" > ./package.json
+
+      - name: Publish to npmjs
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ needs.setup.outputs.npm-tag }}
+        run: |
+          echo -e "npmRegistries: \n  //registry.yarnpkg.com:\n    npmAlwaysAuth: true\n    npmAuthToken: ${NPM_TOKEN}" > ~/.yarnrc.yml
+          yarn npm publish --tag "${NPM_TAG}" --tolerate-republish
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [setup, build, publish]
+    if: failure() && needs.setup.outputs.publishable == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find workflow status
+        id: workflow
+        shell: bash
+        run: |
+          STATUS=success
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            STATUS=cancelled
+          elif [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            STATUS=failure
+          fi
+
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Post workflow status
+        uses: equisoft-actions/notify-workflow-status@v1
+        with:
+          slack-webhook-url: ${{ secrets.SLACK_NOTIFICATION_WEBHOOK_URL }}
+          workflow-status: ${{ steps.workflow.outputs.status }}
