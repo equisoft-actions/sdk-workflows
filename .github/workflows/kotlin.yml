@@ -63,7 +63,7 @@ jobs:
             -Pgpr.key=${{ secrets.GPR_KEY }}
 
       - name: Upload JAR
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ success() }}
         with:
           name: ${{ inputs.name }}-${{ needs.setup.outputs.version }}.jar
@@ -82,7 +82,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download JAR
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.name }}-${{ needs.setup.outputs.version }}.jar
           path: build/libs/${{ inputs.name }}-${{ needs.setup.outputs.version }}.jar
