@@ -104,7 +104,7 @@ jobs:
           NPM_TAG: ${{ needs.setup.outputs.npm-tag }}
         run: |
           echo -e "npmRegistries: \n  //registry.yarnpkg.com:\n    npmAlwaysAuth: true\n    npmAuthToken: ${NPM_TOKEN}" > ~/.yarnrc.yml
-          yarn npm publish --tag "${NPM_TAG}" --tolerate-republish
+          yarn npm publish --tag "${NPM_TAG}" --tolerate-republish --access public
 
   notify:
     name: Notify
