@@ -105,13 +105,19 @@ jobs:
           node-version-file: '.tool-versions'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Login to Github Packages
+        uses: equisoft-actions/yarn-npm-login@v1
+        with:
+          registry: npm.pkg.github.com
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update package version
         env:
           VERSION: ${{ needs.setup.outputs.version }}
         run: |
           contents="$(jq ".version = \"${VERSION}\"" ./package.json)" && echo "${contents}" > ./package.json
 
-      - name: Publish to npmjs
+      - name: Publish to registry
         env:
           NPM_TAG: ${{ needs.setup.outputs.npm-tag }}
         run: |
