@@ -58,7 +58,9 @@ jobs:
         uses: equisoft-actions/with-asdf-vm@v2
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e #v6
+        with:
+          cache-provider: basic
 
       - name: Compile source and test code
         shell: bash
@@ -97,7 +99,9 @@ jobs:
         uses: equisoft-actions/with-asdf-vm@v2
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e #v6
+        with:
+          cache-provider: basic
 
       - name: Publish
         shell: bash
